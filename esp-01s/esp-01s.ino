@@ -1,5 +1,4 @@
 #include <string>
-#include <ArduinoUniqueID.h>
 #include <ESP8266WiFi.h>
 #include <WiFiClientSecure.h>
 

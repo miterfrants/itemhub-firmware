@@ -2,7 +2,7 @@
 #include <WiFiNINA.h>
 #include <vector>
 #include <string>
-#include <ArduinoUniqueID.h>
+
 #include "tiny-json.h"
 #include "ItemhubUtilities.h"
 

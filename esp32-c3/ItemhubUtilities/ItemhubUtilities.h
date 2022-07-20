@@ -1,7 +1,5 @@
 #include <string>
 #include <WiFiClientSecure.h>
-#include <ArduinoJson.h>
-#include <ArduinoUniqueID.h>
 
 #include "../tiny-json.h"
 #define SWITCH "SWITCH"

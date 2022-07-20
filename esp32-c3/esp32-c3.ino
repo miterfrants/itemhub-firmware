@@ -1,6 +1,5 @@
 #include <string>
 #include <vector>
-#include <ArduinoUniqueID.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 

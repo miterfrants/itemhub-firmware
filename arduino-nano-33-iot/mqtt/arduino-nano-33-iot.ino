@@ -1,10 +1,11 @@
 #include <string>
-#include <ESP8266WiFi.h>
-#include <WiFiClientSecure.h>
+#include <vector>
+#include <WiFiNINA.h>
+#include <ArduinoBearSSL.h>
 #include <PubSubClient.h>
 
 #include "ItemhubUtilities/ItemhubUtilities.h"
-#include "ItemhubUtilities/CertsDev.h"
+#include "ItemhubUtilities/Certs.h"
 
 #define CLIENT_ID "{CLIENT_ID}"
 #define CLIENT_SECRET "{CLIENT_SECRET}"
@@ -13,12 +14,9 @@
 #define DEVICE_ID "{DEVICE_ID}"
 #define DOMAIN "{DOMAIN}"
 
-WiFiClientSecure client;
+WiFiClient wifiClient;
+BearSSLClient client(wifiClient, TAs, TAs_NUM);
 PubSubClient mqttClient(client);
-const char fingerPrint[] PROGMEM = FINGERPRINT;
-X509List caCert(CA);
-X509List cert(CERT);
-PrivateKey clientPrivateKey(PRIVATE_KEY);
 std::vector<ItemhubPin> pins;
 
 const int intervalSensor = 1000 * 30;
@@ -33,10 +31,9 @@ void setup()
   Serial.begin(115200);
   {PINS};
 
-  client.setTrustAnchors(&caCert);
-  client.setClientRSACert(&cert, &clientPrivateKey);
-  client.setFingerprint(fingerPrint);
-  client.setInsecure();
+  ArduinoBearSSL.onGetTime(getTime);
+  client.setKey(KEY, CERT);
+  client.setInsecure(BearSSLClient::SNI::Insecure);
 
   mqttClient.setServer(DOMAIN, 8883);
   mqttClient.setCallback(callback);
@@ -46,13 +43,14 @@ void loop()
 {
   if (WiFi.status() != WL_CONNECTED)
   {
-    connectWifi();
+    connectWiFi();
   }
 
   if (!mqttClient.connected())
   {
     connectMqtt();
   }
+
   mqttClient.loop();
 
   // itemhub device state
@@ -97,43 +95,31 @@ void callback(char *topic, byte *payload, unsigned int length)
   ItemhubUtilities::UpdateSwitchFromMQTT(topicStringType, result, pins);
 }
 
-void connectWifi()
+void connectWiFi()
 {
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PWD);
-  while (WiFi.status() != WL_CONNECTED)
+  Serial.print("Attempting to connect to SSID: ");
+  Serial.print(WIFI_SSID);
+  Serial.print(" ");
+
+  while (WiFi.begin(WIFI_SSID, WIFI_PWD) != WL_CONNECTED)
   {
-    delay(1000);
+    // failed, retry
     Serial.print(".");
+    delay(5000);
   }
-  Serial.println("");
-  Serial.println("IP address: ");
+  Serial.println();
+
+  Serial.println("You're connected to the network");
   Serial.println(WiFi.localIP());
-
-  // Set time via NTP, as required for x.509 validation
-  configTime(3 * 60 * 60, 0, "pool.ntp.org", "time.nist.gov");
-  Serial.print("Waiting for NTP time sync: ");
-  time_t now = time(nullptr);
-  while (now < 8 * 3600 * 2)
-  {
-    delay(500);
-    Serial.print(".");
-    now = time(nullptr);
-  }
-
-  struct tm timeinfo;
-  gmtime_r(&now, &timeinfo);
-  Serial.print("Current time: ");
-  Serial.print(asctime(&timeinfo));
+  Serial.println();
 }
 
 void connectMqtt()
 {
-  char err_buf[256];
   while (!mqttClient.connected())
   {
     Serial.print("Attempting MQTT connection...");
-    if (mqttClient.connect(CLIENT_ID, USER, PWD))
+    if (mqttClient.connect(CLIENT_ID, CLIENT_ID, CLIENT_SECRET))
     {
       Serial.println("MQTT connected");
       bindingSwitches();
@@ -142,12 +128,10 @@ void connectMqtt()
     {
       Serial.print("failed, rc=");
       Serial.println(mqttClient.state());
-
-      client.getLastSSLError(err_buf, sizeof(err_buf));
-      Serial.print("error: ");
-      Serial.println(err_buf);
-      Serial.print("error code: ");
-      Serial.println(client.getLastSSLError());
+      Serial.print("TLS Status: ");
+      Serial.println(client.connected());
+      Serial.print("TLS Error: ");
+      Serial.println(client.errorCode());
       Serial.println(" try again in 5 seconds");
       // Wait 5 seconds before retrying
       delay(5000);
@@ -169,4 +153,10 @@ void bindingSwitches()
       mqttClient.subscribe(topic.c_str());
     }
   }
+}
+
+unsigned long getTime()
+{
+  // Get the current time from the WiFi module
+  return WiFi.getTime();
 }

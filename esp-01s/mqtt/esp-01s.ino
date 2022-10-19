@@ -4,7 +4,7 @@
 #include <PubSubClient.h>
 
 #include "ItemhubUtilities/ItemhubUtilities.h"
-#include "ItemhubUtilities/CertsDev.h"
+#include "ItemhubUtilities/Certs.h"
 
 #define CLIENT_ID "{CLIENT_ID}"
 #define CLIENT_SECRET "{CLIENT_SECRET}"
@@ -133,7 +133,7 @@ void connectMqtt()
   while (!mqttClient.connected())
   {
     Serial.print("Attempting MQTT connection...");
-    if (mqttClient.connect(CLIENT_ID, USER, PWD))
+    if (mqttClient.connect(CLIENT_ID, CLIENT_ID, CLIENT_SECRET))
     {
       Serial.println("MQTT connected");
       bindingSwitches();

@@ -1,8 +1,7 @@
-#define CA {CA}
+#define CA "{CA}"
 
-#define PRIVATE_KEY {PRIVATE_KEY}
+#define PRIVATE_KEY "{PRIVATE_KEY}"
 
-#define CERT {CERT}
+#define CERT "{CERT}"
 
-#define FINGERPRINT {FINGERPRINT}
-
+#define FINGERPRINT "{FINGERPRINT}"

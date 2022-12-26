@@ -66,6 +66,10 @@ public:
         std::string authEndpoint = "/api/v1/oauth/exchange-token-for-device";
         std::string emptyToken = "";
         std::string resp = Send(client, ca, host, "POST", authEndpoint, postBody, emptyToken);
+        if (resp == "")
+        {
+            return;
+        }
         std::string token = ItemhubUtilities::Extract(resp, "token");
         std::string remoteDeviceId = ItemhubUtilities::Extract(resp, "deviceId");
 
@@ -80,6 +84,10 @@ public:
         deviceStateEndpoint.append("/switches");
         std::string emptyString = "";
         std::string resp = ItemhubUtilities::Send(client, ca, host, "GET", deviceStateEndpoint, emptyString, token);
+        if (resp == "")
+        {
+            return;
+        }
         std::string body = ItemhubUtilities::ExtractBody(resp, true);
         body.insert(0, "{\"data\":");
         body.append("}");
@@ -180,9 +188,18 @@ public:
             client.print("Connection: close\r\n\r\n");
         }
 
+        bool isFirstLine = false;
         while (client.connected())
         {
             String line = client.readStringUntil('\n');
+            if (!isFirstLine)
+            {
+                isFirstLine = true;
+                if (line.indexOf(" 200 ") == -1)
+                {
+                    return "";
+                }
+            }
             if (line == "\r")
             {
                 break;

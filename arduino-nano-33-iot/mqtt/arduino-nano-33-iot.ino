@@ -32,7 +32,7 @@ void setup()
   {PINS};
 
   ArduinoBearSSL.onGetTime(getTime);
-  client.setKey(KEY, CERT);
+  client.setKey(PRIVATE_KEY, CERT);
   client.setInsecure(BearSSLClient::SNI::Insecure);
 
   mqttClient.setServer(DOMAIN, 8883);

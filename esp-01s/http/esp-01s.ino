@@ -5,21 +5,17 @@
 #include "ItemhubUtilities/ItemhubUtilities.h"
 #include "ItemhubUtilities/Certs.h"
 
-#ifndef STASSID
-#define STASSID "{SSID}"
-#define STAPSK "{WIFI_PASSWORD}"
-#endif
-
 #define SWITCH "SWITCH"
 #define SENSOR "SENSOR"
+#define WIFI_SSID "{SSID}"
+#define WIFI_PWD "{WIFI_PASSWORD}"
+#define USER "{CLIENT_ID}"
+#define PWD "{CLIENT_SECRET}"
 
-const char *ssid = STASSID;
-const char *password = STAPSK;
 std::string host = "itemhub.io";
 std::string remoteDeviceId;
 std::string token;
-std::string empty = "";
-std::string postBody = "{\"clientId\":\"{CLIENT_ID}\",\"clientSecret\":\"{CLIENT_SECRET}\"}";
+
 WiFiClientSecure client;
 X509List ca(CA_PEM);
 std::vector<ItemhubPin> pins;
@@ -42,9 +38,9 @@ void setup()
 
   Serial.println();
   Serial.print("Connecting to ");
-  Serial.println(ssid);
+  Serial.println(WIFI_SSID);
   WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
+  WiFi.begin(WIFI_SSID, WIFI_PWD);
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(1000);
@@ -73,9 +69,18 @@ void setup()
 
   client.setTimeout(15 * 1000);
 
-  AuthResponse authResponse = ItemhubUtilities::Auth(client, ca, host, postBody);
-  token = authResponse.token;
-  remoteDeviceId = authResponse.remoteDeviceId;
+  while (remoteDeviceId.length() == 0)
+  {
+    std::string postBody = "{\"clientId\":\"";
+    deviceStateEndpoint.append(USER);
+    deviceStateEndpoint.append("\",\"clientSecret\":\"");
+    deviceStateEndpoint.append(PWD);
+    deviceStateEndpoint.append("\"}");
+    AuthResponse authResponse = ItemhubUtilities::Auth(client, ca, host, postBody);
+    token = authResponse.token;
+    remoteDeviceId = authResponse.remoteDeviceId;
+  }
+
   Serial.print("token: ");
   Serial.println(token.c_str());
 }

@@ -86,16 +86,15 @@ public:
         strcpy(deviceStateEndpoint, "/api/v1/my/devices/");
         strcat(deviceStateEndpoint, remoteDeviceId);
         strcat(deviceStateEndpoint, "/switches");
-        char resp[620];
+        char resp[425];
         ItemhubUtilities::Send(client, host, port, "GET", deviceStateEndpoint, "", token, resp, isBrSslIoError, reconnectCount);
 
-        char manuallyBody[650];
-        Serial.println(resp);
+        char manuallyBody[500];
         strcpy(manuallyBody, "{\"data\":");
         strcat(manuallyBody, resp);
         strcat(manuallyBody, "}");
-        json_t pool[16];
-        json_t const *jsonData = json_create(manuallyBody, pool, 16);
+        json_t pool[64];
+        json_t const *jsonData = json_create(manuallyBody, pool, 64);
         if (jsonData == NULL)
         {
             Serial.println(F("early return check switch state"));
@@ -125,6 +124,7 @@ public:
                 }
 
                 char const *pin = json_getPropertyValue(item, "pin");
+                char const *settingPin = pins[i].pinString;
                 char const *value = json_getPropertyValue(item, "value");
                 if (!pin)
                 {
@@ -134,12 +134,12 @@ public:
                 String stringValue = String(value);
                 int intValue = stringValue.toInt();
 
-                if (pins[i].pinString == pin && intValue == 0)
+                if (strcmp(pin, settingPin) == 0 && intValue == 0)
                 {
                     Serial.println(F("PIN LOW"));
                     digitalWrite(pins[i].pin, LOW);
                 }
-                else if (pins[i].pinString == pin && intValue == 1)
+                else if (strcmp(pin, settingPin) == 0 && intValue == 1)
                 {
                     Serial.println(F("PIN HIGH"));
                     digitalWrite(pins[i].pin, HIGH);
@@ -182,7 +182,7 @@ public:
             if (!client.connected())
             {
                 Serial.println(F("http client not connected"));
-                delay(5 * 1000);
+                delay(5000);
             }
             timeoutCount += 1;
             if (timeoutCount >= 3)

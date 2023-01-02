@@ -9,7 +9,6 @@
 #include "ItemhubUtilities/ItemhubUtilities.h"
 #include "ItemhubUtilities/Certs.h"
 
-#define REBOOT_PIN 4
 #define _DEBUG_ true
 #define SWITCH "SWITCH"
 #define SENSOR "SENSOR"

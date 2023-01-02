@@ -16,7 +16,7 @@
 #define WIFI_PWD "{WIFI_PASSWORD}"
 #define USER "{CLIENT_ID}"
 #define PWD "{CLIENT_SECRET}"
-#define DEVICE_ID "300"
+#define DEVICE_ID "{DEVICE_ID}"
 #define DOMAIN "itemhub.io"
 #define PORT 443
 

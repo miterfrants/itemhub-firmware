@@ -1,43 +1,35 @@
 #include <ArduinoHttpClient.h>
+#include <ArduinoBearSSL.h>
 #include <WiFiNINA.h>
+#include <MemoryFree.h>
 #include <vector>
 #include <string>
 
 #include "tiny-json.h"
-#include "ItemhubUtilities.h"
+#include "ItemhubUtilities/ItemhubUtilities.h"
+#include "ItemhubUtilities/Certs.h"
 
 #define REBOOT_PIN 4
 #define _DEBUG_ true
 #define SWITCH "SWITCH"
 #define SENSOR "SENSOR"
-#define ERROR_THEN_RECONNECT(client)                                        \
-    int httpStatus = client.responseStatusCode();                           \
-    if (httpStatus == HTTP_ERROR_API || httpStatus == HTTP_ERROR_TIMED_OUT) \
-    {                                                                       \
-        disconnect();                                                       \
-        connect();                                                          \
-        return;                                                             \
-    }                                                                       \
-    else if (httpStatus != 200)                                             \
-    {                                                                       \
-        return;                                                             \
-    }
+#define WIFI_SSID "{SSID}"
+#define WIFI_PWD "{WIFI_PASSWORD}"
+#define USER "{CLIENT_ID}"
+#define PWD "{CLIENT_SECRET}"
+#define DEVICE_ID "300"
+#define DOMAIN "itemhub.io"
+#define PORT 443
 
-char ssid[] = "{SSID}";
-char pass[] = "{WIFI_PASSWORD}";
-
-const char serverName[] = "itemhub.io";
-int port = 443;
-
-WiFiSSLClient sslClient;
-HttpClient client = HttpClient(sslClient, serverName, port);
+WiFiClient wifiClient;
+BearSSLClient client(wifiClient, TAs, TAs_NUM);
 
 bool printWebData = true;
 int wifiStatus = WL_IDLE_STATUS;
 
 const int intervalSensor = 30 * 1000;
 const int intervalSwitch = 2000;
-const int intervalDeviceState = 2000;
+const int intervalDeviceState = 100;
 
 int timeoutCount = 0;
 long loopCount = 0;
@@ -49,44 +41,107 @@ unsigned long previousDeviceStateTimestamp;
 unsigned long currentSwitchTimestamp;
 unsigned long previousSwitchTimestamp;
 
-std::string token;
-std::string remoteDeviceId;
+char token[200];
+char remoteDeviceId[12];
 std::string projectName;
 std::string tokenHeader;
 std::vector<ItemhubPin> pins;
+bool isAuthing = false;
+bool isBrSslIoError = false;
+bool isRestart = false;
+int reconnectCount = 0;
 
 void setup()
 {
-    {PINS};
+    delay(5000);
+    Serial.begin(115200);
 
-    connect();
-    String fv = WiFi.firmwareVersion();
-    Serial.println(fv.c_str());
+    pins.push_back(ItemhubPin(0, "TX0", SWITCH));
+    pins.push_back(ItemhubPin(1, "RX1", SWITCH));
+    pins.push_back(ItemhubPin(2, "D2", SWITCH));
+    pins.push_back(ItemhubPin(3, "D3", SWITCH));
+    pins.push_back(ItemhubPin(4, "D4", SWITCH));
+    pins.push_back(ItemhubPin(5, "D5", SWITCH));
+    pins.push_back(ItemhubPin(6, "D6", SWITCH));
+    pins.push_back(ItemhubPin(7, "D7", SWITCH));
+    pins.push_back(ItemhubPin(8, "D8", SWITCH));
+    pins.push_back(ItemhubPin(9, "D9", SWITCH));
+    pins.push_back(ItemhubPin(10, "D10", SWITCH));
+    pins.push_back(ItemhubPin(11, "D11", SWITCH));
 
-    // itemhub authorized
-    auth();
-    Serial.println("authorized");
-
-    tokenHeader = "Authorization: Bearer ";
-    tokenHeader.append(token);
+    isRestart = true;
 }
 
 void loop()
 {
+    if (reconnectCount >= 10)
+    {
+        // reboot;
+        NVIC_SystemReset();
+    }
+
+    if (WiFi.status() != WL_CONNECTED)
+    {
+        connectWifi();
+    }
+
+    if (isBrSslIoError)
+    {
+        isBrSslIoError = false;
+        WiFi.disconnect();
+        wifiClient.flush();
+        wifiClient.stop();
+    }
+
+    // itemhub authorized
+    while (strlen(remoteDeviceId) == 0)
+    {
+        Serial.println("auth");
+        if (!isAuthing)
+        {
+            isAuthing = true;
+            char postBody[256];
+            strcpy(postBody, "{\"clientId\":\"");
+            strcat(postBody, USER);
+            strcat(postBody, "\",\"clientSecret\":\"");
+            strcat(postBody, PWD);
+            strcat(postBody, "\"}");
+            AuthResponse authResponse = ItemhubUtilities::Auth(client, DOMAIN, PORT, postBody, isBrSslIoError, reconnectCount);
+            strcpy(token, authResponse.token);
+            strcpy(remoteDeviceId, authResponse.remoteDeviceId);
+            isAuthing = false;
+        }
+    }
+
+    if (isRestart)
+    {
+        Serial.println("log");
+        isRestart = false;
+        char logMessage[128];
+        strcpy(logMessage, "{\"message\":\"");
+        strcat(logMessage, "restart");
+        strcat(logMessage, "\",\"deviceId\":\"");
+        strcat(logMessage, DEVICE_ID);
+        strcat(logMessage, "\"}");
+        Serial.println(logMessage);
+        ItemhubUtilities::Log(client, DOMAIN, PORT, token, logMessage, isBrSslIoError, reconnectCount);
+    }
+
     // itemhub device state
     currentDeviceStateTimestamp = millis();
     if (currentDeviceStateTimestamp - previousDeviceStateTimestamp > intervalDeviceState)
     {
         previousDeviceStateTimestamp = currentDeviceStateTimestamp;
-        online();
+        ItemhubUtilities::Online(client, DOMAIN, PORT, remoteDeviceId, token, isBrSslIoError, reconnectCount);
     }
 
     // itemhub switch
     currentSwitchTimestamp = millis();
     if (currentSwitchTimestamp - previousSwitchTimestamp > intervalSwitch)
     {
+        Serial.println(F("check switch state"));
         previousSwitchTimestamp = currentSwitchTimestamp;
-        checkSwitchState();
+        ItemhubUtilities::CheckSwitchState(client, DOMAIN, PORT, token, remoteDeviceId, pins, isBrSslIoError, reconnectCount);
     }
 
     // itemhub sensor
@@ -94,163 +149,37 @@ void loop()
     if (currentSensorTimestamp - previousSensorTimestamp > intervalSensor)
     {
         previousSensorTimestamp = currentSensorTimestamp;
-        sendSensor();
+        for (int i = 0; i < pins.size(); i++)
+        {
+            std::string mode = pins[i].mode;
+            if (mode == SENSOR)
+            {
+
+                // int value = digitalRead(pins[i].pin);
+                std::string valueString = std::to_string(1.00);
+                char *value = (char *)valueString.c_str();
+                pins[i].value = value;
+            }
+        }
+        ItemhubUtilities::SendSensor(client, DOMAIN, PORT, token, remoteDeviceId, pins, isBrSslIoError, reconnectCount);
     }
 }
 
-void connect()
+void connectWifi()
 {
 
-    while (wifiStatus != WL_CONNECTED)
+    while (WiFi.begin(WIFI_SSID, WIFI_PWD) != WL_CONNECTED)
     {
-        Serial.print("Attempting to connect to network: ");
-        Serial.println(ssid);
-        wifiStatus = WiFi.begin(ssid, pass);
-        delay(10000);
+        Serial.print(".");
+        delay(5000);
     }
-    client = HttpClient(sslClient, serverName, port);
+    Serial.println(".");
     IPAddress ip = WiFi.localIP();
-    Serial.print("IP Address: ");
     Serial.println(ip);
+    ArduinoBearSSL.onGetTime(getTime);
 }
 
-void disconnect()
+unsigned long getTime()
 {
-    while (wifiStatus != WL_DISCONNECTED)
-    {
-        Serial.println("disconnect");
-        WiFi.disconnect();
-        wifiStatus = WiFi.status();
-        delay(3000);
-    }
-
-    Serial.println(wifiStatus);
-    WiFi.end();
-    delay(5000);
-}
-
-void auth()
-{
-    std::string postData = "{\"clientId\":\"{CLIENT_ID}\",\"clientSecret\":\"{CLIENT_SECRET}\"}";
-    client.post("/api/v1/oauth/exchange-token-for-device", "application/json", postData.c_str());
-    std::string body = std::string(client.responseBody().c_str());
-    std::string deviceBody = body;
-    token = ItemhubUtilities::Extract(body, "token");
-    remoteDeviceId = ItemhubUtilities::Extract(deviceBody, "deviceId");
-    if (token.size() == 0)
-    {
-        delay(1000);
-        auth();
-    }
-}
-
-void online()
-{
-    std::string deviceOnlineEndpoint = "/api/v1/my/devices/";
-    deviceOnlineEndpoint.append(remoteDeviceId);
-    deviceOnlineEndpoint.append("/online");
-
-    client.beginRequest();
-    client.post(deviceOnlineEndpoint.c_str());
-    client.sendHeader("Content-Type", "application/json");
-    client.sendHeader("Content-Length", 0);
-    client.sendHeader(tokenHeader.c_str());
-    client.endRequest();
-
-    Serial.println("Update State Http Status ");
-    ERROR_THEN_RECONNECT(client);
-}
-
-void checkSwitchState()
-{
-    Serial.println("Check switch state");
-    std::string deviceStateEndpoint = "/api/v1/my/devices/";
-    deviceStateEndpoint.append(remoteDeviceId);
-    deviceStateEndpoint.append("/switches");
-
-    client.beginRequest();
-    client.get(deviceStateEndpoint.c_str());
-    client.sendHeader(tokenHeader.c_str());
-    client.endRequest();
-    ERROR_THEN_RECONNECT(client);
-
-    std::string resp = std::string(client.responseBody().c_str());
-    resp.insert(0, "{\"data\":");
-    resp.append("}");
-    json_t const *jsonData = json_create((char *)resp.c_str(), pool, MAX_FIELDS);
-    if (jsonData == NULL)
-    {
-        return;
-    }
-    json_t const *data = json_getProperty(jsonData, "data");
-    json_t const *item;
-    for (int i = 0; i < pins.size(); i++)
-    {
-        if (pins[i].mode == SENSOR)
-        {
-            continue;
-        }
-
-        for (item = json_getChild(data); item != 0; item = json_getSibling(item))
-        {
-            if (JSON_OBJ != json_getType(item))
-            {
-                continue;
-            }
-
-            char const *pin = json_getPropertyValue(item, "pin");
-            char const *value = json_getPropertyValue(item, "value");
-            if (!pin)
-            {
-                continue;
-            }
-
-            String stringValue = String(value);
-            int intValue = stringValue.toInt();
-
-            if (pins[i].pinString == pin && intValue == 0)
-            {
-                digitalWrite(pins[i].pin, LOW);
-            }
-            else if (pins[i].pinString == pin && intValue == 1)
-            {
-                digitalWrite(pins[i].pin, HIGH);
-            }
-        }
-    }
-}
-
-void sendSensor()
-{
-    std::string devicePinDataEndpoint = "/api/v1/my/devices/";
-    devicePinDataEndpoint.append(remoteDeviceId);
-
-    for (int i = 0; i < pins.size(); i++)
-    {
-        std::string mode = pins[i].mode;
-        if (mode == SENSOR)
-        {
-            std::string endpoint(devicePinDataEndpoint);
-            endpoint.append("/sensors/");
-            endpoint.append(pins[i].pinString);
-            std::string postBody = "{\"value\":";
-            int value = digitalRead(pins[i].pin);
-            std::string valueString = std::to_string(value);
-            postBody.append(valueString.c_str());
-            postBody.append("}");
-
-            client.beginRequest();
-            client.post(endpoint.c_str());
-            client.sendHeader("Content-Type", "application/json");
-            client.sendHeader("Content-Length", postBody.size());
-            client.sendHeader(tokenHeader.c_str());
-            client.beginBody();
-            client.print(postBody.c_str());
-            client.endRequest();
-            ERROR_THEN_RECONNECT(client);
-
-            Serial.print("Sensor: ");
-            Serial.println(client.responseBody().c_str());
-        }
-    }
+    return WiFi.getTime();
 }

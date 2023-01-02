@@ -72,10 +72,10 @@ void setup()
   while (remoteDeviceId.length() == 0)
   {
     std::string postBody = "{\"clientId\":\"";
-    deviceStateEndpoint.append(USER);
-    deviceStateEndpoint.append("\",\"clientSecret\":\"");
-    deviceStateEndpoint.append(PWD);
-    deviceStateEndpoint.append("\"}");
+    postBody.append(USER);
+    postBody.append("\",\"clientSecret\":\"");
+    postBody.append(PWD);
+    postBody.append("\"}");
     AuthResponse authResponse = ItemhubUtilities::Auth(client, ca, host, postBody);
     token = authResponse.token;
     remoteDeviceId = authResponse.remoteDeviceId;

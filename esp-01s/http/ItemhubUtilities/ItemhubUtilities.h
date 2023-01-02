@@ -78,7 +78,6 @@ public:
 
     static void CheckSwitchState(WiFiClientSecure &client, X509List &ca, std::string &host, std::string &token, std::string &remoteDeviceId, std::vector<ItemhubPin> &pins)
     {
-        Serial.println("Check switch state");
         std::string deviceStateEndpoint = "/api/v1/my/devices/";
         deviceStateEndpoint.append(remoteDeviceId);
         deviceStateEndpoint.append("/switches");

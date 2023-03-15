@@ -15,10 +15,7 @@
 
 WiFiClientSecure client;
 PubSubClient mqttClient(client);
-const char fingerPrint[] PROGMEM = FINGERPRINT;
 X509List caCert(CA);
-X509List cert(CERT);
-PrivateKey clientPrivateKey(PRIVATE_KEY);
 std::vector<ItemhubPin> pins;
 
 const int intervalSensor = 1000 * 30;
@@ -34,8 +31,6 @@ void setup()
   {PINS};
 
   client.setTrustAnchors(&caCert);
-  client.setClientRSACert(&cert, &clientPrivateKey);
-  client.setFingerprint(fingerPrint);
   client.setInsecure();
 
   mqttClient.setServer(DOMAIN, 8883);

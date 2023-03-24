@@ -41,12 +41,12 @@ public:
 class ItemhubUtilities
 {
 public:
-    static std::string OnlineOverMQTT(PubSubClient &client)
+    static void OnlineOverMQTT(PubSubClient &client)
     {
         client.publish("online", "");
     }
 
-    static std::string SendSensorDataOverMQTT(PubSubClient &client, ItemhubPin &pin)
+    static void SendSensorDataOverMQTT(PubSubClient &client, ItemhubPin &pin)
     {
         std::string endpoint = pin.pinString;
         std::string value = pin.value;

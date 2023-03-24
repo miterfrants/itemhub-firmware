@@ -39,7 +39,7 @@ public:
         client.publish("online", "");
     }
 
-    static std::string SendSensorDataOverMQTT(PubSubClient &client, ItemhubPin &pin)
+    static void SendSensorDataOverMQTT(PubSubClient &client, ItemhubPin &pin)
     {
         std::string endpoint = pin.pinString;
         std::string value = pin.value;

@@ -17,7 +17,7 @@
 #define USER "{CLIENT_ID}"
 #define PWD "{CLIENT_SECRET}"
 #define DEVICE_ID "{DEVICE_ID}"
-#define DOMAIN "itemhub.io"
+#define DOMAIN "{DOMAIN}"
 #define PORT 443
 
 WiFiClient wifiClient;
@@ -55,18 +55,7 @@ void setup()
     delay(5000);
     Serial.begin(115200);
 
-    pins.push_back(ItemhubPin(0, "TX0", SWITCH));
-    pins.push_back(ItemhubPin(1, "RX1", SWITCH));
-    pins.push_back(ItemhubPin(2, "D2", SWITCH));
-    pins.push_back(ItemhubPin(3, "D3", SWITCH));
-    pins.push_back(ItemhubPin(4, "D4", SWITCH));
-    pins.push_back(ItemhubPin(5, "D5", SWITCH));
-    pins.push_back(ItemhubPin(6, "D6", SWITCH));
-    pins.push_back(ItemhubPin(7, "D7", SWITCH));
-    pins.push_back(ItemhubPin(8, "D8", SWITCH));
-    pins.push_back(ItemhubPin(9, "D9", SWITCH));
-    pins.push_back(ItemhubPin(10, "D10", SWITCH));
-    pins.push_back(ItemhubPin(11, "D11", SWITCH));
+    {PINS};
 
     isRestart = true;
 }

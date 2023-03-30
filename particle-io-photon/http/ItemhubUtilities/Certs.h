@@ -1,4 +1,4 @@
-#define CA_PEM                                                           \
+#define CA                                                               \
     "-----BEGIN CERTIFICATE-----\n"                                      \
     "MIIFYDCCBEigAwIBAgIQQAF3ITfU6UK47naqPGQKtzANBgkqhkiG9w0BAQsFADA/\n" \
     "MSQwIgYDVQQKExtEaWdpdGFsIFNpZ25hdHVyZSBUcnVzdCBDby4xFzAVBgNVBAMT\n" \

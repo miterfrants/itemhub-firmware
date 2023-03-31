@@ -146,7 +146,7 @@ bool MQTT::connect(const char *id, const char *user, const char *pass, const cha
         else
             result = _client.connect((uint8_t *)this->ip, this->port);
 
-        if (result)
+        if (result == 1)
         {
             nextMsgId = 1;
             uint16_t length = 5;

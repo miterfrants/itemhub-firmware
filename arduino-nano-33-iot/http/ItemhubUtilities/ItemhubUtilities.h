@@ -196,7 +196,6 @@ public:
                 if (errorCode == 31 || errorCode == 1 || errorCode == 34)
                 {
                     WiFi.end();
-                    client.reInit(host);
                     isBrSslIoError = true;
                     reconnectCount += 1;
                 }

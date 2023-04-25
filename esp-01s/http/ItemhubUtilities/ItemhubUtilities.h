@@ -56,8 +56,11 @@ public:
         std::string deviceOnlineEndpoint = "/api/v1/my/devices/";
         deviceOnlineEndpoint.append(remoteDeviceId);
         deviceOnlineEndpoint.append("/online");
+
+        Serial.println(deviceOnlineEndpoint.c_str());
         std::string emptyString = "";
         std::string resp = ItemhubUtilities::Send(client, ca, host, "POST", deviceOnlineEndpoint, emptyString, token);
+        Serial.println(resp.c_str());
         return resp;
     }
 
@@ -66,13 +69,14 @@ public:
         std::string authEndpoint = "/api/v1/oauth/exchange-token-for-device";
         std::string emptyToken = "";
         std::string resp = Send(client, ca, host, "POST", authEndpoint, postBody, emptyToken);
+        std::string body = ItemhubUtilities::ExtractBody(resp, false);
         if (resp == "")
         {
             return AuthResponse("", "");
         }
-        std::string token = ItemhubUtilities::Extract(resp, "token");
-        std::string remoteDeviceId = ItemhubUtilities::Extract(resp, "deviceId");
-
+        std::string bodyBackup = body.c_str();
+        std::string token = ItemhubUtilities::Extract(body, "token");
+        std::string remoteDeviceId = ItemhubUtilities::Extract(bodyBackup, "deviceId");
         return AuthResponse(token, remoteDeviceId);
     }
 
@@ -88,6 +92,10 @@ public:
             return;
         }
         std::string body = ItemhubUtilities::ExtractBody(resp, true);
+        if (body == "failed")
+        {
+            return;
+        }
         body.insert(0, "{\"data\":");
         body.append("}");
         json_t const *jsonData = json_create((char *)body.c_str(), pool, MAX_FIELDS);
@@ -158,7 +166,6 @@ public:
 
     static std::string Send(WiFiClientSecure &client, X509List &ca, std::string &host, char *method, std::string &path, std::string &postBody, std::string &token)
     {
-        unsigned char buff[256];
         bool respFlag = false;
         std::string result = "";
 
@@ -191,14 +198,8 @@ public:
         while (client.connected())
         {
             String line = client.readStringUntil('\n');
-            if (!isFirstLine)
-            {
-                isFirstLine = true;
-                if (line.indexOf(" 200 ") == -1)
-                {
-                    return "";
-                }
-            }
+            result += line.c_str();
+            result += "\n";
             if (line == "\r")
             {
                 break;
@@ -207,8 +208,13 @@ public:
 
         while (client.available())
         {
-            char c = client.read();
-            result += c;
+            result += client.readStringUntil('\n').c_str();
+            result += "\n";
+        }
+
+        if (result.find(" 200 ") == -1)
+        {
+            return "";
         }
 
         if (method == "POST")
@@ -233,29 +239,16 @@ public:
         return 500;
     }
 
-    static std::string Extract(std::string &resp, const char *type)
+    static std::string Extract(std::string &jsonString, const char *field)
     {
-        std::string prefix = "{";
-        int startOfJsonObject = resp.find(prefix);
-
-        std::string failed = "FAILED";
-        std::string rawContentLength = resp.substr(0, startOfJsonObject);
-
-        unsigned int contentLength = std::stoul(rawContentLength, nullptr, 16);
-
-        if (startOfJsonObject != -1)
+        json_t const *jsonData = json_create((char *)jsonString.c_str(), pool, MAX_FIELDS);
+        if (jsonData == NULL)
         {
-            std::string body = resp.substr(startOfJsonObject, contentLength);
-            json_t const *jsonData = json_create((char *)body.c_str(), pool, MAX_FIELDS);
-            if (jsonData == NULL)
-            {
-                return "failed";
-            }
-            json_t const *jsonField = json_getProperty(jsonData, type);
-            const char *value = json_getValue(jsonField);
-            return std::string(value);
+            return "failed";
         }
-        return "failed";
+        json_t const *jsonField = json_getProperty(jsonData, field);
+        const char *value = json_getValue(jsonField);
+        return std::string(value);
     }
 
     static std::string ExtractBody(std::string &resp, bool isArray)
@@ -266,12 +259,17 @@ public:
             prefix = "[";
         }
         int startOfJsonObject = resp.find(prefix);
-
-        std::string failed = "FAILED";
-        std::string rawContentLength = resp.substr(0, startOfJsonObject);
-
+        int startOfContentLength = resp.find("\r\n\r\n") + 4;
+        if (startOfContentLength == -1)
+        {
+            startOfContentLength = 0;
+        }
+        std::string rawContentLength = resp.substr(startOfContentLength, startOfJsonObject - 1 - startOfContentLength);
+        if (rawContentLength.length() > 3)
+        {
+            return "failed";
+        }
         unsigned int contentLength = std::stoul(rawContentLength, nullptr, 16);
-
         if (startOfJsonObject != -1)
         {
             std::string body = resp.substr(startOfJsonObject, contentLength);

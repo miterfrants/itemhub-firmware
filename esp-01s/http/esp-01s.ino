@@ -89,7 +89,7 @@ void loop()
 {
   // itemhub device state
   currentDeviceStateTimestamp = millis();
-  if (currentDeviceStateTimestamp - previousDeviceStateTimestamp > intervalDeviceState)
+  if (currentDeviceStateTimestamp - previousDeviceStateTimestamp > intervalDeviceState && remoteDeviceId != "")
   {
     previousDeviceStateTimestamp = currentDeviceStateTimestamp;
     ItemhubUtilities::Online(client, ca, host, remoteDeviceId, token);
@@ -97,7 +97,7 @@ void loop()
 
   // // itemhub switch
   currentSwitchTimestamp = millis();
-  if (currentSwitchTimestamp - previousSwitchTimestamp > intervalSwitch)
+  if (currentSwitchTimestamp - previousSwitchTimestamp > intervalSwitch && remoteDeviceId != "")
   {
     previousSwitchTimestamp = currentSwitchTimestamp;
     ItemhubUtilities::CheckSwitchState(client, ca, host, token, remoteDeviceId, pins);
@@ -105,7 +105,7 @@ void loop()
 
   // // itemhub sensor
   currentSensorTimestamp = millis();
-  if (currentSensorTimestamp - previousSensorTimestamp > intervalSensor)
+  if (currentSensorTimestamp - previousSensorTimestamp > intervalSensor && remoteDeviceId != "")
   {
     previousSensorTimestamp = currentSensorTimestamp;
     for (int i = 0; i < pins.size(); i++)

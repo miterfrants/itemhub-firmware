@@ -88,7 +88,10 @@ public:
         strcat(deviceStateEndpoint, "/switches");
         char resp[425];
         ItemhubUtilities::Send(client, host, port, "GET", deviceStateEndpoint, "", token, resp, isBrSslIoError, reconnectCount);
-
+        if (strlen(resp) == 0)
+        {
+            return;
+        }
         char manuallyBody[500];
         strcpy(manuallyBody, "{\"data\":");
         strcat(manuallyBody, resp);
@@ -248,7 +251,6 @@ public:
                 Serial.println(F("send timeout"));
                 resp[0] = '\0';
                 client.flush();
-                client.stop();
                 return;
             }
             char c = client.read();
@@ -257,7 +259,6 @@ public:
                 Serial.println(F("client be terminat"));
                 resp[0] = '\0';
                 client.flush();
-                client.stop();
                 return;
             }
 
@@ -302,7 +303,6 @@ public:
                     Serial.println(resp);
                     resp[0] = '\0';
                     client.flush();
-                    client.stop();
                     return;
                 }
 
@@ -312,7 +312,6 @@ public:
                     Serial.println(F("server error"));
                     resp[0] = '\0';
                     client.flush();
-                    client.stop();
                     return;
                 }
                 contentLength = std::stoi(resp, 0, 16);

@@ -83,6 +83,9 @@ void setup()
 
   Serial.print("token: ");
   Serial.println(token.c_str());
+
+  std::string message = "restart";
+  ItemhubUtilities::Log(client, ca, host, remoteDeviceId, token, message);
 }
 
 void loop()

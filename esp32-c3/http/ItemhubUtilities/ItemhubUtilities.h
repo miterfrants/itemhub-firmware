@@ -51,6 +51,17 @@ public:
 class ItemhubUtilities
 {
 public:
+    static std::string Log(WiFiClientSecure &client, char *ca, std::string &host, std::string &remoteDeviceId, std::string &token, std::string &message)
+    {
+        std::string logEndPoint = "/api/v1/log";
+        std::string postBody = "{\"deviceId\":";
+        postBody.append(remoteDeviceId);
+        postBody.append(",\"message\":\"");
+        postBody.append(message);
+        postBody.append("\"}");
+        std::string resp = ItemhubUtilities::Send(client, ca, host, "POST", logEndPoint, postBody, token);
+        return resp;
+    }
     static std::string Online(WiFiClientSecure &client, char *ca, std::string &host, std::string &remoteDeviceId, std::string &token)
     {
         std::string deviceOnlineEndpoint = "/api/v1/my/devices/";
@@ -68,7 +79,7 @@ public:
         std::string resp = Send(client, ca, host, "POST", authEndpoint, postBody, emptyToken);
         if (resp == "")
         {
-            return;
+            return AuthResponse("", "");
         }
         std::string token = ItemhubUtilities::Extract(resp, "token");
         std::string remoteDeviceId = ItemhubUtilities::Extract(resp, "deviceId");
@@ -188,17 +199,25 @@ public:
             client.print("Connection: close\r\n\r\n");
         }
 
-        bool isFirstLine = false;
+        bool isFirstLine = true;
         while (client.connected())
         {
             String line = client.readStringUntil('\n');
-            if (!isFirstLine)
+
+            if (isFirstLine && (line.indexOf(" 401 ") > 0 || line.indexOf(" 403 ") > 0))
             {
-                isFirstLine = true;
-                if (line.indexOf(" 200 ") == -1)
-                {
-                    return "";
-                }
+                ESP.restart();
+                return "";
+            }
+
+            if (isFirstLine && line.indexOf(" 200 ") == -1)
+            {
+                return "";
+            }
+
+            if (isFirstLine)
+            {
+                isFirstLine = false;
             }
             if (line == "\r")
             {

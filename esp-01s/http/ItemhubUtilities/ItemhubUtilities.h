@@ -51,6 +51,17 @@ public:
 class ItemhubUtilities
 {
 public:
+    static std::string Log(WiFiClientSecure &client, X509List &ca, std::string &host, std::string &remoteDeviceId, std::string &token, std::string &message)
+    {
+        std::string logEndPoint = "/api/v1/log";
+        std::string postBody = "{\"deviceId\":";
+        postBody.append(remoteDeviceId);
+        postBody.append(",\"message\":\"");
+        postBody.append(message);
+        postBody.append("\"}");
+        std::string resp = ItemhubUtilities::Send(client, ca, host, "POST", logEndPoint, postBody, token);
+        return resp;
+    }
     static std::string Online(WiFiClientSecure &client, X509List &ca, std::string &host, std::string &remoteDeviceId, std::string &token)
     {
         std::string deviceOnlineEndpoint = "/api/v1/my/devices/";
@@ -198,6 +209,15 @@ public:
         while (client.connected())
         {
             String line = client.readStringUntil('\n');
+            if (isFirstLine && (line.indexOf(" 401 ") >= 0 || line.indexOf(" 401 ") >= 0))
+            {
+                ESP.restart();
+            }
+
+            if (isFirstLine)
+            {
+                isFirstLine = false;
+            }
             result += line.c_str();
             result += "\n";
             if (line == "\r")

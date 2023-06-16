@@ -89,7 +89,6 @@ public:
 
     static void CheckSwitchState(WiFiClientSecure &client, char *ca, std::string &host, std::string &token, std::string &remoteDeviceId, std::vector<ItemhubPin> &pins)
     {
-        Serial.println("Check switch state");
         std::string deviceStateEndpoint = "/api/v1/my/devices/";
         deviceStateEndpoint.append(remoteDeviceId);
         deviceStateEndpoint.append("/switches");
@@ -162,8 +161,6 @@ public:
                 postBody.append(pins[i].value);
                 postBody.append("}");
                 std::string resp = ItemhubUtilities::Send(client, ca, host, "POST", endpoint, postBody, token);
-                Serial.print("Sensor: ");
-                Serial.println(resp.c_str());
             }
         }
     }
@@ -176,7 +173,7 @@ public:
 
         client.setCACert(ca);
 
-        if (!client.connect(host.c_str(), 443))
+        if (client.connected() == 0 && !client.connect(host.c_str(), 443))
         {
             Serial.println("connect failed");
             return "";

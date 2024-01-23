@@ -66,12 +66,12 @@ void setup()
 
 void loop()
 {
-  // itemhub device state
-  currentDeviceStateTimestamp = millis();
-  if (currentDeviceStateTimestamp - previousDeviceStateTimestamp > intervalDeviceState)
+  if (WiFi.status() != WL_CONNECTED)
   {
-    previousDeviceStateTimestamp = currentDeviceStateTimestamp;
-    ItemhubUtilities::Online(client, ca, host, remoteDeviceId, token);
+    Serial.println("wifi reconnecting");
+    Serial.println(WiFi.status());
+    WiFi.begin(WIFI_SSID, WIFI_PWD);
+    delay(5000);
   }
 
   // itemhub switch
